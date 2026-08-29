@@ -97,9 +97,6 @@ static void draw_map(void) {
     fill(x - 2, y - 2, 5, 5, c_white);
     draw_line(x, y, x + dx, y + dy, c_white);
   }
-  /* home + work */
-  fill(46, MAP_Y + 111, 3, 3, c_white);
-  fill(85, MAP_Y + 75, 3, 3, c_white);
 }
 
 static void update_proc(Layer *layer, GContext *ctx) {

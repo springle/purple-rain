@@ -143,47 +143,6 @@ for y in range(H):
         if c:
             pd.rectangle([x * SC, y * SC, x * SC + SC - 1, y * SC + SC - 1], fill=c)
 
-# overlays for judging composition (not part of the mask)
-def dot(lon, lat, color):
-    cx, cy = xy(lon, lat, 1)
-    pd.rectangle([cx * SC - 3, cy * SC - 3, cx * SC + 3, cy * SC + 3], fill=color)
-
-CP = [(-73.9819, 40.7679), (-73.9732, 40.7644), (-73.9493, 40.7981), (-73.9580, 40.8007)]
-pd.polygon([tuple(v * SC for v in xy(lon, lat, 1)) for lon, lat in CP], fill=(0, 120, 0))
-dot(-74.0347, 40.7142, (255, 0, 0))   # Home: Paulus Hook
-dot(-73.9700, 40.7590, (255, 0, 0))   # Work: 399 Park
-BRIDGES = [
-    ((-73.971, 40.8515), (-73.9465, 40.850)),   # GWB
-    ((-74.0007, 40.7061), (-73.9905, 40.702)),  # Brooklyn
-    ((-73.9903, 40.7095), (-73.986, 40.7025)),  # Manhattan
-    ((-73.9767, 40.7132), (-73.963, 40.710)),   # Williamsburg
-    ((-73.958, 40.757), (-73.940, 40.7525)),    # Queensboro
-]
-for a, b in BRIDGES:
-    pd.line([tuple(v * SC for v in xy(*a, 1)), tuple(v * SC for v in xy(*b, 1))],
-            fill=(255, 255, 0), width=2)
-pv.save("map-preview.png")
-
-# ---- ribbon runs along the H->W corridor, extended both ways ----
-HPT, WPT = (-74.0347, 40.7142), (-73.9700, 40.7590)
-runs, cur, start = [], None, 0.0
-NPTS = 200
-for i in range(NPTS + 1):
-    t = -0.35 + 1.8 * i / NPTS
-    lon = HPT[0] + t * (WPT[0] - HPT[0])
-    lat = HPT[1] + t * (WPT[1] - HPT[1])
-    cx, cy = xy(lon, lat, 1)
-    v = land[min(H - 1, max(0, int(cy)))][min(W - 1, max(0, int(cx)))]
-    x01 = i / NPTS
-    if cur is None:
-        cur, start = v, x01
-    elif v != cur:
-        runs.append((round(start, 3), round(x01, 3), "land" if cur else "water"))
-        cur, start = v, x01
-runs.append((round(start, 3), 1.0, "land" if cur else "water"))
-print("RIBBON:", runs)
-print("H at x01=%.3f  W at x01=%.3f" % (0.35 / 1.8, (0.35 + 1.0) / 1.8))
-
 # ---- packed hex masks for the artifact ----
 def pack(mask):
     out = []

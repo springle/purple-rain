@@ -178,27 +178,39 @@ def compass(deg: float) -> str:
     return pts[round(deg / 45) % 8]
 
 
-def fetch_obs() -> dict:
+def _station(sid: str) -> dict:
     r = requests.get(
-        "https://api.weather.gov/stations/KNYC/observations/latest",
+        f"https://api.weather.gov/stations/{sid}/observations/latest",
         headers=UA, timeout=30,
     )
     p = r.json()["properties"]
+    return {k: p.get(k, {}).get("value") for k in
+            ("temperature", "dewpoint", "windDirection", "windSpeed", "windGust")}
 
-    def val(key):
-        v = p.get(key, {}).get("value")
-        return v
 
+def fetch_obs() -> dict:
+    """Temp/dew: KNYC (the official NYC thermometer). Wind/gust: KLGA — the
+    Central Park anemometer sits under the tree canopy and reads ~0 while
+    every airport around it reads real wind."""
     out = {}
-    if val("temperature") is not None:
-        out["temp"] = c_to_f(val("temperature"))
-    if val("dewpoint") is not None:
-        out["dew"] = c_to_f(val("dewpoint"))
+    nyc = _station("KNYC")
+    if nyc["temperature"] is not None:
+        out["temp"] = c_to_f(nyc["temperature"])
+    if nyc["dewpoint"] is not None:
+        out["dew"] = c_to_f(nyc["dewpoint"])
+
+    lga = _station("KLGA")
     wind = ""
-    if val("windDirection") is not None and val("windSpeed") is not None:
-        wind = f"{compass(val('windDirection'))}{round(val('windSpeed') * 0.621)}"
-        if val("windGust"):
-            wind += f" G{round(val('windGust') * 0.621)}"
+    if lga["windSpeed"] is not None:
+        mph = round(lga["windSpeed"] * 0.621)
+        if mph == 0:
+            wind = "CALM"
+        elif lga["windDirection"] is not None:
+            wind = f"{compass(lga['windDirection'])}{mph}"
+        else:
+            wind = f"{mph}"
+        if lga["windGust"]:
+            wind += f" G{round(lga['windGust'] * 0.621)}"
     out["wind"] = wind
     return out
 

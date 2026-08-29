@@ -10,11 +10,20 @@ New York harbor. One source per element, no fallbacks:
   currently sees: square base at the cell, bare shaft, no arrowhead.
 - **Color** — intensity, blue → purple: `#00AAFF` rain, `#0000FF` heavy
   (≥1″/h), `#AA00FF` severe (≥2″/h).
-- **Rail** — current KNYC (Central Park) obs: temp, dew, wind/gust; plus
-  Open-Meteo UV and AQI. All gray. Health dot top-right: green = fresh,
-  yellow = HRRR late, red = radar stale.
+- **Rail** — current obs, all gray: temp/dew from KNYC (the official Central
+  Park thermometer), wind/gust from KLGA (a properly sited airport
+  anemometer — Central Park's reads ~0 under the tree canopy), UV and AQI
+  from Open-Meteo. Health dot top-right: green = fresh, yellow = HRRR late,
+  red = radar stale.
 
 Spec: https://claude.ai/code/artifact/2d656229-dc7e-47f2-9920-4aa3866abd0f
+
+## What it looks like
+
+| | |
+|:---:|:---:|
+| <img src="docs/shots/popcorn.png" width="360"><br>**Popcorn afternoon** — two cells on radar, motion vectors set, plumes where HRRR carries them next | <img src="docs/shots/squall.png" width="360"><br>**Squall line on the Hudson** — bowed solid line, purple core at the apex, two hours of trailing rain dithered ahead |
+| <img src="docs/shots/coastal.png" width="360"><br>**Coastal brush** — stratiform sheet grazing Brooklyn and Queens, one wet finger on the waterfront, no cells to track | <img src="docs/shots/harbor.png" width="360"><br>**Lone harbor cell** — heavy core over the Upper Bay, headed northeast, plume over lower Manhattan |
 
 ## Layout
 
