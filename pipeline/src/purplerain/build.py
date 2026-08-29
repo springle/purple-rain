@@ -50,19 +50,39 @@ def tier(mmh: float) -> int:
 
 # ---------- MRMS: the solid pixels ----------
 
+def _get_retry(url: str, tries: int = 3, magic: bytes | None = None) -> bytes:
+    """The MRMS server intermittently answers with an HTML error page; retry
+    within the run (same source, same run — not a fallback) and verify the
+    payload magic before trusting it."""
+    import time
+
+    last: Exception | None = None
+    for i in range(tries):
+        try:
+            r = requests.get(url, headers=UA, timeout=60)
+            r.raise_for_status()
+            if magic and not r.content.startswith(magic):
+                raise ValueError(f"bad magic, got {r.content[:8]!r}")
+            return r.content
+        except Exception as e:
+            last = e
+            time.sleep(4 * (i + 1))
+    raise RuntimeError(f"{url} failed after {tries} tries: {last}")
+
+
 def fetch_mrms() -> tuple[list[int] | None, float]:
     """Sample MRMS PrecipRate at every cell. Returns (tiers, age_minutes)."""
     import eccodes as ec
 
     base = "https://mrms.ncep.noaa.gov/2D/PrecipRate/"
-    idx = requests.get(base, timeout=30).text
+    idx = _get_retry(base).decode(errors="replace")
     stamps = re.findall(r"MRMS_PrecipRate_00\.00_(\d{8}-\d{6})\.grib2\.gz", idx)
     if not stamps:
         return None, 1e9
     ts = max(stamps)
     valid = datetime.strptime(ts, "%Y%m%d-%H%M%S").replace(tzinfo=timezone.utc)
     age_min = (datetime.now(timezone.utc) - valid).total_seconds() / 60
-    raw = requests.get(f"{base}MRMS_PrecipRate_00.00_{ts}.grib2.gz", timeout=60).content
+    raw = _get_retry(f"{base}MRMS_PrecipRate_00.00_{ts}.grib2.gz", magic=b"\x1f\x8b")
     with tempfile.NamedTemporaryFile(suffix=".grib2") as tf:
         tf.write(gzip.decompress(raw))
         tf.flush()
@@ -137,11 +157,11 @@ def fetch_hrrr() -> list[int] | None:
 
 def fetch_vectors() -> list[list[int]]:
     base = "https://mrms.ncep.noaa.gov/ProbSevere/PROBSEVERE/"
-    idx = requests.get(base, timeout=30).text
+    idx = _get_retry(base).decode(errors="replace")
     names = re.findall(r"MRMS_PROBSEVERE_\d{8}_\d{6}\.json", idx)
     if not names:
         return []
-    data = requests.get(base + max(names), timeout=30).json()
+    data = json.loads(_get_retry(base + max(names)))
     vecs = []
     for feat in data.get("features", []):
         try:
