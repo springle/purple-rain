@@ -28,6 +28,19 @@ static char s_wind[16] = "";
 static int s_health = 2;               /* red until first payload */
 static bool s_have = false;
 
+/* persist keys: watchfaces are killed on every trip into the system UI, so
+ * the last payload must survive relaunch (cells chunked under the 256 B cap) */
+#define PKEY_CELLS0 10
+#define PKEY_CELLS1 11
+#define PKEY_CELLS2 12
+#define PKEY_VECS 13
+#define PKEY_META 14
+typedef struct __attribute__((packed)) {
+  int16_t temp, dew, uv, aqi;
+  uint8_t health, nvec;
+  char wind[16];
+} Meta;
+
 static uint8_t *s_rows[SCREEN_H];
 static uint8_t c_black, c_white, c_gray, c_dim, c_rain, c_hvy, c_sev;
 static uint8_t c_hgrn, c_hyel, c_hred;
@@ -169,6 +182,29 @@ static void inbox(DictionaryIterator *it, void *ctx) {
     strncpy(s_wind, tp->value->cstring, sizeof s_wind - 1);
   s_have = true;
   layer_mark_dirty(s_layer);
+  persist_write_data(PKEY_CELLS0, s_cells, 200);
+  persist_write_data(PKEY_CELLS1, s_cells + 200, 200);
+  persist_write_data(PKEY_CELLS2, s_cells + 400, NCELLS - 400);
+  persist_write_data(PKEY_VECS, s_vecs, sizeof s_vecs);
+  Meta m = { s_temp, s_dew, s_uv, s_aqi, (uint8_t)s_health, (uint8_t)s_nvec, "" };
+  strncpy(m.wind, s_wind, sizeof m.wind - 1);
+  persist_write_data(PKEY_META, &m, sizeof m);
+}
+
+static void restore(void) {
+  if (!persist_exists(PKEY_META)) return;
+  Meta m;
+  if (persist_read_data(PKEY_META, &m, sizeof m) != sizeof m) return;
+  if (persist_read_data(PKEY_CELLS0, s_cells, 200) != 200) return;
+  if (persist_read_data(PKEY_CELLS1, s_cells + 200, 200) != 200) return;
+  if (persist_read_data(PKEY_CELLS2, s_cells + 400, NCELLS - 400) != NCELLS - 400) return;
+  persist_read_data(PKEY_VECS, s_vecs, sizeof s_vecs);
+  s_temp = m.temp; s_dew = m.dew; s_uv = m.uv; s_aqi = m.aqi;
+  s_health = m.health;
+  s_nvec = m.nvec > MAX_VECS ? MAX_VECS : m.nvec;
+  memcpy(s_wind, m.wind, sizeof s_wind);
+  s_wind[sizeof s_wind - 1] = 0;
+  s_have = true;
 }
 
 static void tick(struct tm *t, TimeUnits u) { layer_mark_dirty(s_layer); }
@@ -194,6 +230,7 @@ static void init(void) {
   c_hyel = GColorFromHEX(0xFFFF00).argb;
   c_hred = GColorFromHEX(0xFF0000).argb;
 
+  restore();
   s_win = window_create();
   window_set_window_handlers(s_win, (WindowHandlers){ .load = win_load, .unload = win_unload });
   window_stack_push(s_win, true);

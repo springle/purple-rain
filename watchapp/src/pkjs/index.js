@@ -15,9 +15,13 @@ function fetchPayload() {
   xhr.send();
 }
 
+var sentThisSession = false;
+
 function deliver(p) {
   if (p.v !== 1 || typeof p.cells !== 'string' || p.cells.length !== 1050) return;
-  if (p.gen && p.gen === localStorage.getItem('gen')) return;
+  /* the watchface relaunches every time the user visits the system UI, so
+   * always send once per pkjs session even when gen is unchanged */
+  if (sentThisSession && p.gen && p.gen === localStorage.getItem('gen')) return;
 
   var cells = [];
   for (var i = 0; i < 525; i++)
@@ -42,6 +46,7 @@ function deliver(p) {
     HEALTH: typeof p.health === 'number' ? p.health : 2
   };
   Pebble.sendAppMessage(msg, function () {
+    sentThisSession = true;
     localStorage.setItem('gen', p.gen || '');
   }, function (e) {
     console.log('purple: send failed');
