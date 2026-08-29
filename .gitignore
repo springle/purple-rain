@@ -1,0 +1,4 @@
+watchapp/build/
+pipeline/.venv/
+__pycache__/
+*.pyc

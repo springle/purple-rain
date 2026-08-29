@@ -1,0 +1,8 @@
+[Unit]
+Description=Purple Rain payload build + publish to Cloudflare
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/Developer/purple-rain/scripts/publish.sh
+TimeoutStartSec=300

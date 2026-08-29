@@ -1,0 +1,36 @@
+{
+  "name": "purple-rain",
+  "author": "sam",
+  "version": "1.0.0",
+  "keywords": [
+    "pebble-app"
+  ],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "Purple Rain",
+    "uuid": "8c4941d3-e627-4987-92ad-2cdd3f03cc18",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "emery"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "messageKeys": [
+      "CELLS",
+      "VECS",
+      "NVEC",
+      "TEMP",
+      "DEW",
+      "UV",
+      "AQI",
+      "WIND",
+      "HEALTH"
+    ],
+    "resources": {
+      "media": []
+    }
+  }
+}

@@ -1,0 +1,10 @@
+[Unit]
+Description=Purple Rain 5-minute nowcast publish
+
+[Timer]
+OnCalendar=*-*-* *:00/5:00
+RandomizedDelaySec=20
+Persistent=true
+
+[Install]
+WantedBy=timers.target
