@@ -13,7 +13,7 @@ New York harbor. One source per element, no fallbacks:
 - **Rail** — current obs, all gray: temp/dew from KNYC (the official Central
   Park thermometer), wind/gust from KLGA (a properly sited airport
   anemometer — Central Park's reads ~0 under the tree canopy), UV and AQI
-  from Open-Meteo. Health dot top-right: green = fresh, yellow = HRRR late,
+  from Open-Meteo. Health dot bottom-right: green = fresh, yellow = HRRR late,
   red = radar stale.
 
 Spec: https://claude.ai/code/artifact/2d656229-dc7e-47f2-9920-4aa3866abd0f

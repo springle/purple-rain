@@ -135,8 +135,6 @@ static void update_proc(Layer *layer, GContext *ctx) {
   for (char *p = date; *p; p++) if (*p >= 'a' && *p <= 'z') *p -= 32;
   int xa = draw_text(clk, 4, 4, c_white, 2);
   draw_text(date, xa + 10, 4, c_gray, 2);
-  uint8_t dot = s_health == 0 ? c_hgrn : s_health == 1 ? c_hyel : c_hred;
-  fill(190, 7, 5, 5, dot);
   fill(0, 24, SCREEN_W, 1, c_dim);
 
   draw_map();
@@ -161,6 +159,9 @@ static void update_proc(Layer *layer, GContext *ctx) {
     draw_text(buf, 124, 199, c_gray, 1);
   }
   if (s_wind[0]) draw_text(s_wind, 124, 212, c_gray, 1);
+  /* health dot: bottom-right corner, clear of the longest rail strings */
+  uint8_t dot = s_health == 0 ? c_hgrn : s_health == 1 ? c_hyel : c_hred;
+  fill(191, 218, 5, 5, dot);
 
   graphics_release_frame_buffer(ctx, fb);
 }
