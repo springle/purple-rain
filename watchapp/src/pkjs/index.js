@@ -19,9 +19,15 @@ var sentThisSession = false;
 
 function deliver(p) {
   if (p.v !== 1 || typeof p.cells !== 'string' || p.cells.length !== 1050) return;
-  /* the watchface relaunches every time the user visits the system UI, so
-   * always send once per pkjs session even when gen is unchanged */
-  if (sentThisSession && p.gen && p.gen === localStorage.getItem('gen')) return;
+  /* staleness disclosure, not a fallback: if the payload itself is old
+   * (publisher down, machine asleep), the dot must not stay green */
+  var health = typeof p.health === 'number' ? p.health : 2;
+  if (p.gen && Date.now() - Date.parse(p.gen) > 20 * 60 * 1000) health = 2;
+  /* the watchface relaunches on every trip into the system UI, so send once
+   * per pkjs session even when gen is unchanged — and re-send whenever the
+   * effective health changed (a stale payload has an unchanging gen) */
+  if (sentThisSession && p.gen && p.gen === localStorage.getItem('gen') &&
+      String(health) === localStorage.getItem('health')) return;
 
   var cells = [];
   for (var i = 0; i < 525; i++)
@@ -43,11 +49,12 @@ function deliver(p) {
     UV: typeof p.uv === 'number' ? Math.round(p.uv) : -999,
     AQI: typeof p.aqi === 'number' ? Math.round(p.aqi) : -999,
     WIND: p.wind || '',
-    HEALTH: typeof p.health === 'number' ? p.health : 2
+    HEALTH: health
   };
   Pebble.sendAppMessage(msg, function () {
     sentThisSession = true;
     localStorage.setItem('gen', p.gen || '');
+    localStorage.setItem('health', String(health));
   }, function (e) {
     console.log('purple: send failed');
   });

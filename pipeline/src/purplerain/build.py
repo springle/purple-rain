@@ -79,10 +79,20 @@ def fetch_mrms() -> tuple[list[int] | None, float]:
     stamps = re.findall(r"MRMS_PrecipRate_00\.00_(\d{8}-\d{6})\.grib2\.gz", idx)
     if not stamps:
         return None, 1e9
-    ts = max(stamps)
+    # the index sometimes advertises the newest frame before it's actually
+    # downloadable — step back one 2-min frame rather than fail the run
+    raw = None
+    for ts in sorted(set(stamps), reverse=True)[:3]:
+        try:
+            raw = _get_retry(f"{base}MRMS_PrecipRate_00.00_{ts}.grib2.gz",
+                             tries=2, magic=b"\x1f\x8b")
+            break
+        except Exception:
+            continue
+    if raw is None:
+        return None, 1e9
     valid = datetime.strptime(ts, "%Y%m%d-%H%M%S").replace(tzinfo=timezone.utc)
     age_min = (datetime.now(timezone.utc) - valid).total_seconds() / 60
-    raw = _get_retry(f"{base}MRMS_PrecipRate_00.00_{ts}.grib2.gz", magic=b"\x1f\x8b")
     with tempfile.NamedTemporaryFile(suffix=".grib2") as tf:
         tf.write(gzip.decompress(raw))
         tf.flush()
@@ -126,7 +136,7 @@ def fetch_hrrr() -> list[int] | None:
                 "&leftlon=-74.25&rightlon=-73.65&toplat=40.95&bottomlat=40.55"
                 f"&dir=%2Fhrrr.{cyc:%Y%m%d}%2Fconus"
             )
-            r = requests.get(url, timeout=90)
+            r = requests.get(url, timeout=45)
             if r.status_code != 200 or len(r.content) < 500:
                 break
             with tempfile.NamedTemporaryFile(suffix=".grib2") as tf:
