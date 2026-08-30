@@ -84,12 +84,18 @@ def blob(lon, lat, w=2, h=2):
 blob(-74.0446, 40.6892, 2, 2)  # Liberty
 blob(-74.0396, 40.6995, 2, 2)  # Ellis
 blob(-74.0180, 40.6900, 3, 3)  # Governors
-for t in range(11):             # Roosevelt Island sliver
-    lat = 40.7475 + t * (40.7760 - 40.7475) / 10
-    lon = -73.9545 + t * (-73.9420 + 73.9545) / 10
+# Roosevelt Island, full length (40.742-40.789): 2 px of island (its true
+# ~250 m width) with 1 px of river carved on each flank — at 140 m/px the
+# channels otherwise fuse it into Manhattan and Queens
+for t in range(61):
+    lat = 40.742 + t * (40.789 - 40.742) / 60
+    lon = -73.9545 + (lat - 40.7475) * 0.4386
     cx, cy = xy(lon, lat, 1)
-    if 0 <= int(cx) < W and 0 <= int(cy) < H:
-        land[int(cy)][int(cx)] = 1
+    ix, iy = int(cx), int(cy)
+    if 0 <= iy < H:
+        for dx, v in ((-2, 0), (-1, 0), (0, 1), (1, 1), (2, 0)):
+            if 0 <= ix + dx < W:
+                land[iy][ix + dx] = v
 
 # prune land speckle in the water: keep big landmasses and real islands only
 # (Liberty, Ellis, Governors, Roosevelt) — pier fragments and slivers go
