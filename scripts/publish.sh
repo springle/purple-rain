@@ -11,7 +11,7 @@ ENV_FILE="$HOME/.config/pebble-wx/cloudflare.env"  # PUBLISH_TOKEN=...
 mkdir -p "$(dirname "$OUT")"
 
 cd "$REPO/pipeline"
-uv run purple-rain "$OUT"
+uv run --reinstall-package purple-rain-pipeline purple-rain "$OUT"
 
 # shellcheck disable=SC1090
 source "$ENV_FILE"

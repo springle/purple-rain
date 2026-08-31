@@ -84,22 +84,22 @@ def blob(lon, lat, w=2, h=2):
 blob(-74.0446, 40.6892, 2, 2)  # Liberty
 blob(-74.0396, 40.6995, 2, 2)  # Ellis
 blob(-74.0180, 40.6900, 3, 3)  # Governors
-# Roosevelt Island, full length (40.742-40.789): 2 px of island (its true
-# ~250 m width) with 1 px of river carved on each flank — at 140 m/px the
-# channels otherwise fuse it into Manhattan and Queens
+# Roosevelt Island: deliberately omitted — at 140 m/px a 2-px sliver reads
+# as a weird line, so the whole corridor is carved to open water (this also
+# stops Census fragments fusing into the Manhattan/Queens shorelines)
 for t in range(61):
     lat = 40.742 + t * (40.789 - 40.742) / 60
     lon = -73.9545 + (lat - 40.7475) * 0.4386
     cx, cy = xy(lon, lat, 1)
     ix, iy = int(cx), int(cy)
     if 0 <= iy < H:
-        for dx, v in ((-2, 0), (-1, 0), (0, 1), (1, 1), (2, 0)):
+        for dx in (-2, -1, 0, 1, 2):
             if 0 <= ix + dx < W:
-                land[iy][ix + dx] = v
+                land[iy][ix + dx] = 0
 
 # prune land speckle in the water: keep big landmasses and real islands only
 # (Liberty, Ellis, Governors, Roosevelt) — pier fragments and slivers go
-KEEP_BOXES = [(40, 126, 47, 135), (42, 121, 49, 128), (55, 128, 64, 137), (94, 58, 104, 92)]
+KEEP_BOXES = [(40, 126, 47, 135), (42, 121, 49, 128), (55, 128, 64, 137)]
 seen = [[False] * W for _ in range(H)]
 for y0 in range(H):
     for x0 in range(W):
