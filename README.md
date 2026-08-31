@@ -40,8 +40,9 @@ Spec: https://claude.ai/code/artifact/2d656229-dc7e-47f2-9920-4aa3866abd0f
 ## Wire format
 
 `GET /wx/purple.json` → `{v, gen, cells, vecs, temp, dew, uv, aqi, wind, health}`
-where `cells` is 525 hex bytes (25×21 grid of 8-px cells over the map,
-bits 0–1 = now severity, bits 2–3 = next-2h severity) and `vecs` is up to six
+where `cells` is 525 hex bytes (25×21 grid of 8-px cells over the map; low
+nibble = now, high nibble = next-2h, each a 16-step log intensity that the
+watch bilinearly interpolates into smooth per-pixel fields) and `vecs` is up to six
 `[x, y, dx, dy]` pixel vectors. ~1.3 KB. The watch polls every 5 minutes and
 redraws only on change.
 

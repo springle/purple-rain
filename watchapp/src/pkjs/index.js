@@ -18,7 +18,7 @@ function fetchPayload() {
 var sentThisSession = false;
 
 function deliver(p) {
-  if (p.v !== 1 || typeof p.cells !== 'string' || p.cells.length !== 1050) return;
+  if (p.v !== 2 || typeof p.cells !== 'string' || p.cells.length !== 1050) return;
   /* staleness disclosure, not a fallback: if the payload itself is old
    * (publisher down, machine asleep), the dot must not stay green */
   var health = typeof p.health === 'number' ? p.health : 2;

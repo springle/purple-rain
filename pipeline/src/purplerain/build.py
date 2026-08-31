@@ -27,6 +27,14 @@ NCELLS = GRID_W * GRID_H
 # severity tiers, mm/h (0.05 / 1 / 2 inch per hour)
 T_RAIN, T_HEAVY, T_SEVERE = 1.27, 25.4, 50.8
 
+
+def level(mmh: float) -> int:
+    """16-level log intensity for the wire: level = 2*log2(mmh+1), so the
+    watch can interpolate smooth gradients instead of 4 flat tiers."""
+    if mmh <= 0:
+        return 0
+    return max(0, min(15, round(2 * math.log2(mmh + 1))))
+
 UA = {"User-Agent": "purple-rain/1.0 (pringle@hey.com)"}
 MAX_VECS = 6
 
@@ -111,7 +119,7 @@ def fetch_mrms() -> tuple[list[int] | None, float]:
                         row = round((lat1 - lat) / dj)
                         col = round(((lon % 360) - lon1) / di)
                         v = ec.codes_get_double_element(gid, "values", row * ni + col)
-                        out.append(tier(v if v > 0 else 0.0))
+                        out.append(level(v if v > 0 else 0.0))
             finally:
                 ec.codes_release(gid)
     return out, age_min
@@ -159,7 +167,7 @@ def fetch_hrrr() -> list[int] | None:
                             ec.codes_release(gid)
             got += 1
         if got == 2:
-            return [tier(v) for v in peak]
+            return [level(v) for v in peak]
     return None
 
 
@@ -305,10 +313,10 @@ def main() -> int:
 
     now_t = now_tiers or [0] * NCELLS
     fut_t = fut_tiers or [0] * NCELLS
-    cells = "".join(f"{(n | (f << 2)):02x}" for n, f in zip(now_t, fut_t))
+    cells = "".join(f"{(n | (f << 4)):02x}" for n, f in zip(now_t, fut_t))
 
     payload = {
-        "v": 1,
+        "v": 2,
         "gen": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "cells": cells,
         "vecs": vecs,
@@ -321,7 +329,7 @@ def main() -> int:
 
     with open(out_path, "w") as f:
         json.dump(payload, f, separators=(",", ":"))
-    wet = sum(1 for c in now_t if c) + sum(1 for c in fut_t if c)
+    wet = sum(1 for c in now_t if c >= 2) + sum(1 for c in fut_t if c >= 2)
     print(
         f"built: health={health} mrms_age={mrms_age:.0f}m wet_cells={wet} "
         f"vecs={len(vecs)} rail={ {k: v for k, v in rail.items()} }",

@@ -20,7 +20,13 @@
 static Window *s_win;
 static Layer *s_layer;
 
-static uint8_t s_cells[NCELLS];        /* bits0-1 now sev, bits2-3 next-2h sev */
+static uint8_t s_cells[NCELLS];        /* low nibble: now level, high: next-2h (0-15 log intensity) */
+static uint8_t s_now[NCELLS], s_fut[NCELLS];
+/* thresholds in level space, level = 2*log2(mm/h + 1) */
+#define L_FRINGE 1.2f
+#define L_RAIN 2.36f   /* 0.05 in/h */
+#define L_HVY 9.44f    /* 1 in/h */
+#define L_SEV 11.39f   /* 2 in/h */
 static uint8_t s_vecs[MAX_VECS * 4];   /* x, y(map), dx+64, dy+64 */
 static int s_nvec = 0;
 static int s_temp = -999, s_dew = -999, s_uv = -999, s_aqi = -999;
@@ -81,25 +87,52 @@ static int draw_text(const char *s, int x, int y, uint8_t c, int scale) {
   return x;
 }
 
-/* severity palette: 0 none, 1 rain (blue), 2 heavy (deep blue), 3 severe (purple) */
-static uint8_t sev_color(int sev) {
-  return sev >= 3 ? c_sev : sev == 2 ? c_hvy : c_rain;
+static uint8_t level_color(float v) {
+  return v >= L_SEV ? c_sev : v >= L_HVY ? c_hvy : c_rain;
+}
+
+static void decode_cells(void) {
+  for (int k = 0; k < NCELLS; k++) {
+    s_now[k] = s_cells[k] & 15;
+    s_fut[k] = s_cells[k] >> 4;
+  }
+}
+
+/* bilinear sample of a 25x21 level grid at a map pixel: cell centers sit at
+ * (i*8+4, j*8+4), so intensity glides between cells instead of stepping in
+ * 8-px blocks — the difference between radar and minecraft */
+static float bilin(const uint8_t *g, int x, int y) {
+  float gx = (x - 4) / 8.0f, gy = (y - 4) / 8.0f;
+  int i0 = gx < 0 ? 0 : (int)gx;
+  int j0 = gy < 0 ? 0 : (int)gy;
+  if (i0 > GRID_W - 2) i0 = GRID_W - 2;
+  if (j0 > GRID_H - 2) j0 = GRID_H - 2;
+  float fx = gx - i0, fy = gy - j0;
+  if (fx < 0) fx = 0; else if (fx > 1) fx = 1;
+  if (fy < 0) fy = 0; else if (fy > 1) fy = 1;
+  const uint8_t *r0 = g + j0 * GRID_W + i0, *r1 = r0 + GRID_W;
+  float top = r0[0] + (r0[1] - r0[0]) * fx;
+  float bot = r1[0] + (r1[1] - r1[0]) * fx;
+  return top + (bot - top) * fy;
 }
 
 static void draw_map(void) {
   for (int my = 0; my < MASK_H; my++) {
     int sy = MAP_Y + my;
-    int cj = my >> 3;
     for (int x = 0; x < MASK_W; x++) {
       /* base cartography */
       if (mask_bit(COAST_MASK, x, my)) px(x, sy, c_gray);
       else if (mask_bit(LAND_MASK, x, my) && !(x & 1) && !(sy & 1)) px(x, sy, c_dim);
-      /* weather field: solid = now, 50% checkerboard = next 2 h */
-      if (s_have) {
-        int b = s_cells[cj * GRID_W + (x >> 3)];
-        int now = b & 3, fut = (b >> 2) & 3;
-        if (now) px(x, sy, sev_color(now));
-        else if (fut && !((x + sy) & 1)) px(x, sy, sev_color(fut));
+      if (!s_have) continue;
+      /* solid = now (with a 25%-dithered fringe at the rain edge),
+       * 50% checkerboard = next 2 h */
+      float vn = bilin(s_now, x, my);
+      if (vn >= L_RAIN) px(x, sy, level_color(vn));
+      else if (vn >= L_FRINGE) {
+        if (!(x & 1) && !(sy & 1)) px(x, sy, c_rain);
+      } else {
+        float vf = bilin(s_fut, x, my);
+        if (vf >= L_RAIN && !((x + sy) & 1)) px(x, sy, level_color(vf));
       }
     }
   }
@@ -168,8 +201,10 @@ static void update_proc(Layer *layer, GContext *ctx) {
 
 static void inbox(DictionaryIterator *it, void *ctx) {
   Tuple *tp;
-  if ((tp = dict_find(it, MESSAGE_KEY_CELLS)) && tp->length == NCELLS)
+  if ((tp = dict_find(it, MESSAGE_KEY_CELLS)) && tp->length == NCELLS) {
     memcpy(s_cells, tp->value->data, NCELLS);
+    decode_cells();
+  }
   if ((tp = dict_find(it, MESSAGE_KEY_NVEC))) s_nvec = tp->value->int32;
   if (s_nvec > MAX_VECS) s_nvec = MAX_VECS;
   if ((tp = dict_find(it, MESSAGE_KEY_VECS)) && tp->length >= (uint16_t)(s_nvec * 4))
@@ -200,6 +235,7 @@ static void restore(void) {
   if (persist_read_data(PKEY_CELLS1, s_cells + 200, 200) != 200) return;
   if (persist_read_data(PKEY_CELLS2, s_cells + 400, NCELLS - 400) != NCELLS - 400) return;
   persist_read_data(PKEY_VECS, s_vecs, sizeof s_vecs);
+  decode_cells();
   s_temp = m.temp; s_dew = m.dew; s_uv = m.uv; s_aqi = m.aqi;
   s_health = m.health;
   s_nvec = m.nvec > MAX_VECS ? MAX_VECS : m.nvec;
