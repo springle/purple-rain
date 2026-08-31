@@ -159,8 +159,17 @@ def fetch_hrrr() -> list[int] | None:
                             for j in range(GRID_H):
                                 for i in range(GRID_W):
                                     lon, lat = cell_lonlat(i, j)
-                                    n = ec.codes_grib_find_nearest(gid, lat, lon)[0]
-                                    mmh = max(0.0, n.value) * 3600.0
+                                    # HRRR is 3 km on a Lambert grid; interpolate
+                                    # the 4 nearest points (inverse-distance) so
+                                    # the dither renders the model field itself,
+                                    # not projection-resampling staircase
+                                    pts = ec.codes_grib_find_nearest(gid, lat, lon, False, 4)
+                                    wsum = vsum = 0.0
+                                    for n in pts:
+                                        w = 1.0 / max(n.distance, 0.01)
+                                        wsum += w
+                                        vsum += w * max(0.0, n.value)
+                                    mmh = (vsum / wsum) * 3600.0
                                     k = j * GRID_W + i
                                     peak[k] = max(peak[k], mmh)
                         finally:
