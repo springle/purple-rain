@@ -136,7 +136,10 @@ def fetch_hrrr() -> list[int] | None:
         cyc = (now - timedelta(hours=back)).replace(minute=0, second=0, microsecond=0)
         peak = [0.0] * NCELLS
         got = 0
-        for fxx in (1, 2):
+        # the cycle is `back` hours old, so f01 covers an hour that is already
+        # (partly) past — anchor the window to the wall clock instead: fetch
+        # the two forecast hours spanning ~now .. now+2h
+        for fxx in (back + 1, back + 2):
             url = (
                 "https://nomads.ncep.noaa.gov/cgi-bin/filter_hrrr_sub.pl"
                 f"?file=hrrr.t{cyc.hour:02d}z.wrfsubhf{fxx:02d}.grib2"
