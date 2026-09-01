@@ -15,6 +15,12 @@ uv run --reinstall-package purple-rain-pipeline purple-rain "$OUT"
 
 # shellcheck disable=SC1090
 source "$ENV_FILE"
+# receipts: keep 48h of published payloads for reconciliation
+HIST="$HOME/.local/state/purple-rain/history"
+mkdir -p "$HIST"
+cp "$OUT" "$HIST/purple-$(date -u +%Y%m%d-%H%M).json"
+find "$HIST" -name 'purple-*.json' -mmin +2880 -delete
+
 for attempt in 1 2 3; do
   if curl -sf -X PUT "$URL" \
       -H "authorization: Bearer $PUBLISH_TOKEN" \

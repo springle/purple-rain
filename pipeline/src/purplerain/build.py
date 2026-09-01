@@ -127,8 +127,13 @@ def fetch_mrms() -> tuple[list[int] | None, float]:
 
 # ---------- HRRR sub-hourly: the dithered pixels ----------
 
-def fetch_hrrr() -> list[int] | None:
-    """Max PRATE over f01+f02 15-min steps (~next 2 h), tiered per cell."""
+def fetch_hrrr() -> tuple[list[int] | None, str | None]:
+    """Next-2h footprint from 15-min APCP accumulation buckets.
+
+    Accumulation, not instantaneous rate: 8 instant PRATE snapshots leave
+    gaps where a moving cell passed between photos; APCP integrates the
+    track, so the dither is the true swath. Intensity = peak 15-min bucket
+    expressed as mm/h."""
     import eccodes as ec
 
     now = datetime.now(timezone.utc)
@@ -143,7 +148,7 @@ def fetch_hrrr() -> list[int] | None:
             url = (
                 "https://nomads.ncep.noaa.gov/cgi-bin/filter_hrrr_sub.pl"
                 f"?file=hrrr.t{cyc.hour:02d}z.wrfsubhf{fxx:02d}.grib2"
-                "&var_PRATE=on&subregion="
+                "&var_APCP=on&subregion="
                 "&leftlon=-74.25&rightlon=-73.65&toplat=40.95&bottomlat=40.55"
                 f"&dir=%2Fhrrr.{cyc:%Y%m%d}%2Fconus"
             )
@@ -172,15 +177,15 @@ def fetch_hrrr() -> list[int] | None:
                                         w = 1.0 / max(n.distance, 0.01)
                                         wsum += w
                                         vsum += w * max(0.0, n.value)
-                                    mmh = (vsum / wsum) * 3600.0
+                                    mmh = (vsum / wsum) * 4.0  # mm per 15-min bucket -> mm/h
                                     k = j * GRID_W + i
                                     peak[k] = max(peak[k], mmh)
                         finally:
                             ec.codes_release(gid)
             got += 1
         if got == 2:
-            return [level(v) for v in peak]
-    return None
+            return [level(v) for v in peak], f"{cyc:%Hz}+f{back + 1}f{back + 2}"
+    return None, None
 
 
 # ---------- ProbSevere: the vectors ----------
@@ -304,10 +309,10 @@ def main() -> int:
         print(f"mrms failed: {e}", file=sys.stderr)
         now_tiers, mrms_age = None, 1e9
     try:
-        fut_tiers = fetch_hrrr()
+        fut_tiers, hrrr_cyc = fetch_hrrr()
     except Exception as e:
         print(f"hrrr failed: {e}", file=sys.stderr)
-        fut_tiers = None
+        fut_tiers, hrrr_cyc = None, None
     try:
         vecs = fetch_vectors()
     except Exception as e:
@@ -341,10 +346,12 @@ def main() -> int:
 
     with open(out_path, "w") as f:
         json.dump(payload, f, separators=(",", ":"))
-    wet = sum(1 for c in now_t if c >= 2) + sum(1 for c in fut_t if c >= 2)
+    now_wet = sum(1 for c in now_t if c >= 2)
+    fut_wet = sum(1 for c in fut_t if c >= 2)
     print(
-        f"built: health={health} mrms_age={mrms_age:.0f}m wet_cells={wet} "
-        f"vecs={len(vecs)} rail={ {k: v for k, v in rail.items()} }",
+        f"built: health={health} mrms_age={mrms_age:.0f}m now_wet={now_wet} "
+        f"fut_wet={fut_wet} hrrr={hrrr_cyc} vecs={len(vecs)} "
+        f"rail={ {k: v for k, v in rail.items()} }",
         file=sys.stderr,
     )
     return 0

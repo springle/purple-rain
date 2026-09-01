@@ -23,10 +23,13 @@ static Layer *s_layer;
 static uint8_t s_cells[NCELLS];        /* low nibble: now level, high: next-2h (0-15 log intensity) */
 static uint8_t s_now[NCELLS], s_fut[NCELLS];
 /* thresholds in level space, level = 2*log2(mm/h + 1) */
-#define L_FRINGE 1.2f
-#define L_RAIN 2.36f   /* 0.05 in/h */
-#define L_HVY 9.44f    /* 1 in/h */
-#define L_SEV 11.39f   /* 2 in/h */
+/* thresholds sit BETWEEN wire quantization levels: level(0.05 in/h)=2,
+ * level(1 in/h)=9, level(2 in/h)=11 — a threshold above the level it
+ * gates (e.g. 2.36) silently hides that entire intensity band */
+#define L_FRINGE 0.8f
+#define L_RAIN 1.5f
+#define L_HVY 8.5f
+#define L_SEV 10.5f
 static uint8_t s_vecs[MAX_VECS * 4];   /* x, y(map), dx+64, dy+64 */
 static int s_nvec = 0;
 static int s_temp = -999, s_dew = -999, s_uv = -999, s_aqi = -999;
