@@ -34,7 +34,7 @@ Spec: https://claude.ai/code/artifact/2d656229-dc7e-47f2-9920-4aa3866abd0f
 - `scripts/publish.sh` — build + PUT to the Cloudflare Worker
   (`pebble-wx.sam-2d3.workers.dev/wx/purple.json`, worker source lives in
   pebble-wx `infra/cloudflare/`). Token in `~/.config/pebble-wx/cloudflare.env`.
-- `systemd/` — user units, every 5 minutes. Install:
+- `systemd/` — user units, every 2 minutes (MRMS's native cadence). Install:
   `cp systemd/* ~/.config/systemd/user/ && systemctl --user enable --now purple-rain.timer`
 
 ## Wire format
@@ -43,8 +43,10 @@ Spec: https://claude.ai/code/artifact/2d656229-dc7e-47f2-9920-4aa3866abd0f
 where `cells` is 525 hex bytes (25×21 grid of 8-px cells over the map; low
 nibble = now, high nibble = next-2h, each a 16-step log intensity that the
 watch bilinearly interpolates into smooth per-pixel fields) and `vecs` is up to six
-`[x, y, dx, dy]` pixel vectors. ~1.3 KB. The watch polls every 5 minutes and
-redraws only on change.
+`[x, y, dx, dy]` pixel vectors. ~1.3 KB. The watch polls every 2 minutes and
+redraws only on change; unchanged payloads aren't even published (gen
+refreshes at least every 10 min so staleness detection stays honest).
 
-Cloudflare free tier headroom: 288 KV writes/day (limit 1 000), ~600 reads/day
+Cloudflare free tier: worst-case ~720 KV writes/day on an all-day-rain day
+(limit 1 000); publish-on-change keeps typical days far lower. Reads ~1 400/day
 (limit 100 000).

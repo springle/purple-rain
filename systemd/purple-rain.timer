@@ -1,9 +1,9 @@
 [Unit]
-Description=Purple Rain 5-minute nowcast publish
+Description=Purple Rain 2-minute nowcast publish
 
 [Timer]
-OnCalendar=*-*-* *:00/5:00
-RandomizedDelaySec=20
+OnCalendar=*-*-* *:00/2:00
+RandomizedDelaySec=10
 Persistent=true
 
 [Install]

@@ -1,7 +1,7 @@
 /* Purple Rain companion: pull the payload from Cloudflare every 5 minutes,
  * push to the watch only when it changed. */
 var URL = 'https://pebble-wx.sam-2d3.workers.dev/wx/purple.json';
-var POLL_MS = 5 * 60 * 1000;
+var POLL_MS = 2 * 60 * 1000;
 
 function fetchPayload() {
   var xhr = new XMLHttpRequest();

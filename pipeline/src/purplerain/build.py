@@ -15,6 +15,9 @@ import re
 import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+CACHE_DIR = Path.home() / ".local/state/purple-rain/cache"
 
 import requests
 
@@ -139,6 +142,16 @@ def fetch_hrrr() -> tuple[list[int] | None, str | None]:
     now = datetime.now(timezone.utc)
     for back in (1, 2, 3):
         cyc = (now - timedelta(hours=back)).replace(minute=0, second=0, microsecond=0)
+        # HRRR changes hourly; the 2-min publish cadence must not refetch it
+        # every run. Cache is keyed by cycle AND window, so both an hourly
+        # cycle landing and the window rolling forward invalidate naturally.
+        ckey = CACHE_DIR / f"hrrr_{cyc:%Y%m%d%H}_f{back + 1}f{back + 2}.json"
+        if ckey.exists():
+            try:
+                d = json.loads(ckey.read_text())
+                return d["levels"], d["tag"]
+            except Exception:
+                pass
         peak = [0.0] * NCELLS
         got = 0
         # the cycle is `back` hours old, so f01 covers an hour that is already
@@ -184,7 +197,17 @@ def fetch_hrrr() -> tuple[list[int] | None, str | None]:
                             ec.codes_release(gid)
             got += 1
         if got == 2:
-            return [level(v) for v in peak], f"{cyc:%Hz}+f{back + 1}f{back + 2}"
+            levels = [level(v) for v in peak]
+            tag = f"{cyc:%Hz}+f{back + 1}f{back + 2}"
+            try:
+                CACHE_DIR.mkdir(parents=True, exist_ok=True)
+                ckey.write_text(json.dumps({"levels": levels, "tag": tag}))
+                for old in CACHE_DIR.glob("hrrr_*.json"):
+                    if old != ckey:
+                        old.unlink()
+            except Exception:
+                pass
+            return levels, tag
     return None, None
 
 
